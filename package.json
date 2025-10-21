@@ -12,7 +12,11 @@
     "hardhat:test:solidity": "hardhat test solidity",
     "hardhat:test:nodejs": "hardhat test nodejs",
     "hardhat:node": "hardhat node",
-    "hardhat:deploy": "hardhat ignition deploy"
+    "hardhat:deploy": "hardhat ignition deploy",
+    "create-token": "node --loader ts-node/esm scripts/create-platform-token.ts",
+    "verify-token": "node --loader ts-node/esm scripts/verify-token.ts",
+    "faucet": "node --loader ts-node/esm scripts/faucet.ts",
+    "simple-faucet": "tsx scripts/simple-faucet.ts"
   },
   "dependencies": {
     "next": "15.5.6",
@@ -33,6 +37,8 @@
     "ethers": "^6.15.0",
     "hardhat": "^3.0.7",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   },
   "type": "module"
