@@ -3,10 +3,10 @@ import { UserService } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = params.id;
+    const { id: userId } = await params;
 
     if (!userId) {
       return NextResponse.json(
@@ -15,9 +15,12 @@ export async function GET(
       );
     }
 
-    // For now, we'll assume the ID is a Hedera account ID
-    // In a full implementation, you might want to support both user IDs and account IDs
-    const user = await UserService.findByHederaAccountId(userId);
+    // Try to find by UUID first, then by Hedera account ID
+    let user = await UserService.findById(userId);
+    
+    if (!user) {
+      user = await UserService.findByHederaAccountId(userId);
+    }
 
     if (!user) {
       return NextResponse.json(
@@ -39,10 +42,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = params.id;
+    const { id: userId } = await params;
     const updates = await request.json();
 
     if (!userId) {

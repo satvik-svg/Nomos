@@ -30,6 +30,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return createApiError('is_like must be a boolean value', 400);
     }
 
+    // Check if user is trying to like their own post
+    const { PostService } = await import('@/lib/supabase');
+    const post = await PostService.getPost(postId);
+    
+    if (!post) {
+      return createApiError('Post not found', 404);
+    }
+    
+    if (post.author_id === userId) {
+      return createApiError('You cannot like your own post', 403);
+    }
+
     await PostInteractionService.likePost(userId, postId, is_like);
     
     return createApiResponse(

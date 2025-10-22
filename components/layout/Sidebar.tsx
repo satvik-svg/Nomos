@@ -37,6 +37,20 @@ export default function Sidebar() {
           </Link>
           
           <Link
+            href="/search"
+            className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
+              isActive('/search') 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span>Search</span>
+          </Link>
+          
+          <Link
             href="/creators"
             className={`block px-3 py-2 rounded-md text-sm font-medium ${
               isActive('/creators') 
@@ -83,6 +97,17 @@ export default function Sidebar() {
                 }`}
               >
                 Create Post
+              </Link>
+              
+              <Link
+                href="/creator/settings"
+                className={`block px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive('/creator/settings') 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Creator Settings
               </Link>
               
               <Link

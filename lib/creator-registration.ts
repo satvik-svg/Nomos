@@ -58,7 +58,8 @@ export class CreatorRegistrationService {
   }
 
   /**
-   * Register as creator - handles token association, approval, and registration
+   * Register as creator - SIMPLIFIED FOR HTS
+   * Just calls registerAsCreator() - user must approve tokens first
    */
   async registerAsCreator(accountId: string): Promise<RegistrationResult> {
     try {
@@ -83,14 +84,21 @@ export class CreatorRegistrationService {
         };
       }
 
-      // Execute registration transaction
-      console.log('Executing registration...');
+      // Step 1: Approve tokens (HTS style)
+      console.log('Step 1: Approving tokens...');
+      const approvalResult = await this.approveTokenSpending(accountId);
+      if (!approvalResult.success) {
+        return approvalResult;
+      }
+
+      // Step 2: Call registerAsCreator on contract
+      console.log('Step 2: Executing registration...');
       const result = await this.executeRegistration(accountId);
       if (!result.success) {
         return result;
       }
 
-      // Step 4: Confirm registration via API
+      // Step 3: Confirm registration via API
       if (result.transactionId) {
         try {
           await this.confirmRegistration(accountId, result.transactionId);
@@ -278,8 +286,8 @@ export class CreatorRegistrationService {
   }
 
   /**
-   * Execute the creator registration - ONLY call registerAsCreator
-   * The V3 contract doesn't handle token transfers - just marks status
+   * Execute the creator registration
+   * Contract will use transferFrom to pull tokens (ERC-20 style, works with HTS)
    */
   private async executeRegistration(accountId: string): Promise<RegistrationResult> {
     const client = this.getClient();

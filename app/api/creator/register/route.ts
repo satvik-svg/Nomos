@@ -1,78 +1,52 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { CreatorService } from '@/lib/supabase';
+import { withErrorHandling, createApiResponse, createApiError } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
-  try {
+  return withErrorHandling(async () => {
     const body = await request.json();
     const { accountId, transactionId } = body;
 
     if (!accountId) {
-      return NextResponse.json(
-        { error: 'Account ID is required' },
-        { status: 400 }
-      );
+      return createApiError('Account ID is required', 400);
     }
 
     if (!transactionId) {
-      return NextResponse.json(
-        { error: 'Transaction ID is required' },
-        { status: 400 }
-      );
+      return createApiError('Transaction ID is required', 400);
     }
 
     // Verify creator status on-chain
     const isCreator = await CreatorService.checkCreatorStatus(accountId);
 
     if (!isCreator) {
-      return NextResponse.json(
-        { error: 'Creator status not confirmed on-chain' },
-        { status: 400 }
+      return createApiError(
+        'Creator status not confirmed on-chain. Please ensure the transaction was successful.',
+        400
       );
     }
 
-    // TODO: Update user record in database if needed
-    // For now, we rely on the on-chain status check
-
-    return NextResponse.json({
-      success: true,
-      message: 'Creator registration confirmed',
-      isCreator: true
-    });
-
-  } catch (error) {
-    console.error('Creator registration API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    return createApiResponse(
+      { isCreator: true },
+      'Creator registration confirmed'
     );
-  }
+  }, 'POST /api/creator/register');
 }
 
 export async function GET(request: NextRequest) {
-  try {
+  return withErrorHandling(async () => {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
 
     if (!accountId) {
-      return NextResponse.json(
-        { error: 'Account ID is required' },
-        { status: 400 }
-      );
+      return createApiError('Account ID is required', 400);
     }
 
     // Check creator status on-chain
     const isCreator = await CreatorService.checkCreatorStatus(accountId);
 
-    return NextResponse.json({
+    return createApiResponse({
       accountId,
       isCreator
     });
-
-  } catch (error) {
-    console.error('Creator status check API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  }, 'GET /api/creator/register');
 }

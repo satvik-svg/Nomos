@@ -36,7 +36,7 @@ export class HederaWalletService {
     try {
       // Get project ID from environment or use a default for development
       const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'your-project-id';
-      
+
       const metadata = {
         name: 'Hedera Content Platform',
         description: 'Decentralized content monetization platform built on Hedera Hashgraph',
@@ -62,7 +62,7 @@ export class HederaWalletService {
       await this.dAppConnector.init({ logger: 'error' });
 
       // Set up event listeners (if the method exists)
-      if (typeof this.dAppConnector.onSessionEvent === 'function') {
+      if (typeof (this.dAppConnector as any).onSessionEvent === 'function') {
         this.setupEventListeners();
       } else {
         console.warn('onSessionEvent method not available, using alternative approach');
@@ -82,9 +82,9 @@ export class HederaWalletService {
 
     try {
       // Listen for session events
-      this.dAppConnector.onSessionEvent((event) => {
+      (this.dAppConnector as any).onSessionEvent((event: any) => {
         console.log('Session event:', event);
-        
+
         switch (event.name) {
           case HederaSessionEvent.AccountsChanged:
             // Call async method without blocking
@@ -104,10 +104,10 @@ export class HederaWalletService {
 
   private async handleAccountsChanged(accounts: string[]) {
     console.log('Accounts changed:', accounts);
-    
+
     if (accounts && accounts.length > 0) {
       const accountId = accounts[0];
-      
+
       // Try to get EVM address from the session or derive it
       let evmAddress: string | null = null;
       try {
@@ -115,7 +115,7 @@ export class HederaWalletService {
       } catch (error) {
         console.warn('Could not get EVM address:', error);
       }
-      
+
       this.connectionState = {
         ...this.connectionState,
         accountId,
@@ -150,7 +150,7 @@ export class HederaWalletService {
         if (sessions && sessions.length > 0) {
           const session = sessions[0];
           // Some wallets include the EVM address in the session metadata
-          const metadata = session.peer?.metadata;
+          const metadata = session.peer?.metadata as any;
           if (metadata?.evmAddress) {
             const evmAddress = metadata.evmAddress as string;
             localStorage.setItem(`evm_address_${accountId}`, evmAddress);
@@ -169,16 +169,16 @@ export class HederaWalletService {
     }
   }
 
-  private handleChainChanged(chainInfo: unknown) {
+  private handleChainChanged(chainInfo: any) {
     console.log('Chain changed:', chainInfo);
-    
+
     if (chainInfo && chainInfo.chainId) {
       const network = chainInfo.chainId === HederaChainId.Mainnet ? 'mainnet' : 'testnet';
       this.connectionState = {
         ...this.connectionState,
         network,
       };
-      
+
       this.notifyConnectionChange();
     }
   }
@@ -188,7 +188,7 @@ export class HederaWalletService {
 
     try {
       const sessions = this.dAppConnector.walletConnectClient?.session.getAll();
-      
+
       if (sessions && sessions.length > 0) {
         const session = sessions[0];
         const accounts = Object.values(session.namespaces)
@@ -197,16 +197,18 @@ export class HederaWalletService {
           .filter(Boolean);
 
         if (accounts.length > 0) {
-          const accountId = accounts[0];
-          
+          const accountId = accounts[0] || null;
+
           // Try to get EVM address
           let evmAddress: string | null = null;
           try {
-            evmAddress = await this.getEvmAddressForAccount(accountId);
+            if (accountId) {
+              evmAddress = await this.getEvmAddressForAccount(accountId);
+            }
           } catch (error) {
             console.warn('Could not get EVM address:', error);
           }
-          
+
           this.connectionState = {
             isConnected: true,
             accountId,
@@ -248,7 +250,7 @@ export class HederaWalletService {
       }
 
       console.log('Opening wallet connection modal...');
-      
+
       // Open the WalletConnect modal
       await this.dAppConnector.openModal();
 
@@ -264,7 +266,7 @@ export class HederaWalletService {
 
         const checkConnection = () => {
           attempts++;
-          
+
           if (this.connectionState.isConnected) {
             clearTimeout(timeout);
             resolve(this.connectionState);
@@ -282,30 +284,53 @@ export class HederaWalletService {
 
     } catch (error) {
       console.error('Failed to connect wallet:', error);
-      
+
       if (error instanceof Error) {
-        if (error.message.includes('User rejected')) {
+        if (error.message.includes('User rejected') || error.message.includes('user denied')) {
           throw new Error('Connection rejected by user. Please try again and approve the connection in your wallet.');
-        } else if (error.message.includes('No wallet')) {
+        } else if (error.message.includes('No wallet') || error.message.includes('wallet not found')) {
           throw new Error('No compatible wallet found. Please install HashPack or another Hedera-compatible wallet.');
+        } else if (error.message.includes('timeout') || error.message.includes('timed out')) {
+          throw new Error('Connection timeout. Please make sure you approve the connection in your wallet.');
+        } else if (error.message.includes('locked')) {
+          throw new Error('Wallet is locked. Please unlock your wallet and try again.');
         }
       }
-      
-      throw new Error('Failed to connect wallet. Please make sure you have a Hedera-compatible wallet installed.');
+
+      throw new Error('Failed to connect wallet. Please make sure you have a Hedera-compatible wallet installed and unlocked.');
     }
   }
 
   async disconnectWallet(): Promise<void> {
     try {
       if (this.dAppConnector) {
+        // Delete all sessions
         const sessions = this.dAppConnector.walletConnectClient?.session.getAll();
-        
         if (sessions && sessions.length > 0) {
           for (const session of sessions) {
-            await this.dAppConnector.walletConnectClient?.session.delete(
-              session.topic,
-              { code: 6000, message: 'User disconnected' }
-            );
+            try {
+              await this.dAppConnector.walletConnectClient?.session.delete(
+                session.topic,
+                { code: 6000, message: 'User disconnected' }
+              );
+            } catch (err) {
+              console.warn('Failed to delete session (may already be deleted):', err);
+            }
+          }
+        }
+
+        // Delete all pairings to prevent stale pairing errors
+        const pairings = this.dAppConnector.walletConnectClient?.pairing.getAll();
+        if (pairings && pairings.length > 0) {
+          for (const pairing of pairings) {
+            try {
+              await this.dAppConnector.walletConnectClient?.pairing.delete(
+                pairing.topic,
+                { code: 6000, message: 'User disconnected' }
+              );
+            } catch (err) {
+              console.warn('Failed to delete pairing (may already be deleted):', err);
+            }
           }
         }
       }
@@ -319,10 +344,18 @@ export class HederaWalletService {
       };
 
       this.notifyConnectionChange();
-      console.log('Wallet disconnected successfully');
+      console.log('Wallet disconnected successfully and connector reset');
     } catch (error) {
       console.error('Failed to disconnect wallet:', error);
-      throw error;
+      // Don't throw - still update state
+      this.connectionState = {
+        isConnected: false,
+        accountId: null,
+        network: null,
+        topic: null,
+        evmAddress: null,
+      };
+      this.notifyConnectionChange();
     }
   }
 
@@ -340,11 +373,6 @@ export class HederaWalletService {
         throw new Error('Wallet not connected');
       }
 
-      // Verify the request method exists
-      if (typeof this.dAppConnector.request !== 'function') {
-        throw new Error('DApp connector request method not available');
-      }
-
       // Convert transaction bytes to base64 string (HashPack expects base64)
       const transactionBase64 = Buffer.from(transactionBytes).toString('base64');
 
@@ -355,7 +383,7 @@ export class HederaWalletService {
       });
 
       // Send transaction using Hedera JSON-RPC method
-      const result = await this.dAppConnector.request({
+      const result = await (this.dAppConnector as any).request({
         method: HederaJsonRpcMethod.SignAndExecuteTransaction,
         params: {
           signerAccountId: `hedera:testnet:${accountId}`,
@@ -372,19 +400,27 @@ export class HederaWalletService {
 
     } catch (error) {
       console.error('Failed to send transaction:', error);
-      
+
       let errorMessage = 'Transaction failed';
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // Provide more user-friendly error messages
-        if (errorMessage.includes('User rejected')) {
+        if (errorMessage.includes('User rejected') || errorMessage.includes('user denied')) {
           errorMessage = 'Transaction rejected by user';
-        } else if (errorMessage.includes('insufficient')) {
+        } else if (errorMessage.includes('insufficient') || errorMessage.includes('not enough')) {
           errorMessage = 'Insufficient balance to complete transaction';
+        } else if (errorMessage.includes('not associated')) {
+          errorMessage = 'Token not associated with your account';
+        } else if (errorMessage.includes('allowance') || errorMessage.includes('approval')) {
+          errorMessage = 'Token approval required';
+        } else if (errorMessage.includes('timeout')) {
+          errorMessage = 'Transaction timed out. It may still be processing.';
+        } else if (errorMessage.includes('contract') || errorMessage.includes('execution')) {
+          errorMessage = 'Contract execution failed. Please check transaction requirements.';
         }
       }
-      
+
       return {
         success: false,
         error: errorMessage,

@@ -2,6 +2,7 @@
 
 import { useWallet } from '@/contexts/WalletContext';
 import { useState } from 'react';
+import CreatorBadge from '@/components/creator/CreatorBadge';
 
 export default function UserProfile() {
   const { user, isCreator, isConnected, isLoading } = useWallet();
@@ -45,12 +46,26 @@ export default function UserProfile() {
   }
 
   const handleSave = async () => {
+    if (!user) return;
+    
     try {
-      // TODO: Implement API call to update user profile
-      console.log('Saving profile:', editForm);
-      setIsEditing(false);
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      // Refresh the page to show updated data
+      window.location.reload();
     } catch (error) {
       console.error('Error saving profile:', error);
+      alert('Failed to save profile. Please try again.');
     }
   };
 
@@ -152,13 +167,13 @@ export default function UserProfile() {
           <div>
             <h3 className="text-sm font-medium text-gray-700">Account Type</h3>
             <div className="flex items-center space-x-2">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                isCreator 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-gray-100 text-gray-800'
-              }`}>
-                {isCreator ? 'Creator' : 'User'}
-              </span>
+              {isCreator ? (
+                <CreatorBadge size="sm" />
+              ) : (
+                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  User
+                </span>
+              )}
             </div>
           </div>
 

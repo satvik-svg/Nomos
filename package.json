@@ -14,9 +14,7 @@
     "hardhat:node": "hardhat node",
     "hardhat:deploy": "hardhat ignition deploy",
     "create-token": "tsx scripts/create-platform-token.ts",
-    "faucet": "tsx scripts/simple-faucet.ts",
-    "check-balance": "tsx scripts/check-balance.ts",
-    "check-addresses": "tsx scripts/check-both-addresses.ts"
+    "faucet": "tsx scripts/simple-faucet.ts"
   },
   "dependencies": {
     "@hashgraph/hedera-wallet-connect": "^2.0.4-canary.3ca04e9.0",

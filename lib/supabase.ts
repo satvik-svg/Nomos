@@ -170,6 +170,7 @@ class UserService {
 
   static async createUser(userData: {
     hedera_account_id: string;
+    evm_address?: string;
     display_name?: string;
     bio?: string;
     avatar_url?: string;
@@ -239,6 +240,7 @@ class UserService {
   }
 
   static async updateUser(userId: string, updates: {
+    evm_address?: string;
     display_name?: string;
     bio?: string;
     avatar_url?: string;
@@ -651,15 +653,20 @@ class PostInteractionService {
         .single();
 
       if (existingLike) {
-        // Update existing like/dislike
-        const { error } = await supabase
-          .from('post_likes')
-          .update({ is_like: isLike })
-          .eq('user_id', userId)
-          .eq('post_id', postId);
+        // If clicking the same action, remove it (toggle off)
+        if (existingLike.is_like === isLike) {
+          await this.removeLike(userId, postId);
+        } else {
+          // Otherwise, update to the new action
+          const { error } = await supabase
+            .from('post_likes')
+            .update({ is_like: isLike })
+            .eq('user_id', userId)
+            .eq('post_id', postId);
 
-        if (error) {
-          throw handleSupabaseError(error);
+          if (error) {
+            throw handleSupabaseError(error);
+          }
         }
       } else {
         // Create new like/dislike
@@ -740,66 +747,36 @@ class PostInteractionService {
 class CreatorService {
   static async checkCreatorStatus(hederaAccountId: string, evmAddress?: string): Promise<boolean> {
     try {
-      console.log('Checking creator status for account:', hederaAccountId);
+      console.log('=== Creator Status Check ===');
+      console.log('Account ID:', hederaAccountId);
       
-      // Check if contract configuration is available
-      const contractId = process.env.NEXT_PUBLIC_CREATOR_REGISTRY_CONTRACT_ID;
-      const tokenId = process.env.NEXT_PUBLIC_PLATFORM_TOKEN_ID;
-      
-      console.log('Contract configuration:', { contractId, tokenId });
-      
-      if (!contractId || !tokenId) {
-        console.warn('Contract not configured, returning false for creator status');
+      if (!isSupabaseConfigured()) {
+        console.warn('❌ Supabase not configured, returning false for creator status');
         return false;
       }
 
-      // Get EVM address from multiple sources (in order of preference)
-      let addressToCheck = evmAddress;
-      
-      // Try environment variable
-      if (!addressToCheck) {
-        addressToCheck = process.env.NEXT_PUBLIC_EVM_ADDRESS;
-      }
-      
-      // Try localStorage (set by wallet)
-      if (!addressToCheck && typeof window !== 'undefined') {
-        addressToCheck = localStorage.getItem(`evm_address_${hederaAccountId}`) || undefined;
-      }
+      // Check creator status from Supabase database
+      // The database is kept in sync with the smart contract via cron job
+      const { data, error } = await supabase
+        .from('users')
+        .select('is_creator')
+        .eq('hedera_account_id', hederaAccountId)
+        .single();
 
-      if (!addressToCheck) {
-        console.warn('No EVM address available for creator status check');
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // User not found in database
+          console.log('User not found in database, creator status: false');
+          return false;
+        }
+        console.error('Error checking creator status from database:', error);
         return false;
       }
 
-      console.log('Using EVM address for check:', addressToCheck);
-
-      // Check cache first
-      const { getCreatorStatusCache } = await import('@/lib/creator-status-cache');
-      const cachedStatus = getCreatorStatusCache(hederaAccountId, addressToCheck);
+      const isCreator = data?.is_creator || false;
+      console.log('Creator status from database:', isCreator);
       
-      if (cachedStatus !== null) {
-        console.log('Using cached creator status:', cachedStatus);
-        return cachedStatus;
-      }
-
-      // Try to query from contract
-      const { queryCreatorStatus } = await import('@/lib/contract-query');
-      const result = await queryCreatorStatus(hederaAccountId, addressToCheck);
-      
-      if (result.error) {
-        console.error('Creator status query error:', result.error);
-        console.warn('⚠️ Cannot verify creator status automatically.');
-        console.warn('If you have registered, manually set status with:');
-        console.warn(`localStorage.setItem('creator_status_${hederaAccountId}_${addressToCheck}', JSON.stringify({isCreator: true, timestamp: Date.now(), evmAddress: '${addressToCheck}'}));`);
-        return false;
-      }
-      
-      // Cache the result
-      const { setCreatorStatusCache } = await import('@/lib/creator-status-cache');
-      setCreatorStatusCache(hederaAccountId, addressToCheck, result.isCreator);
-      
-      console.log('Creator status result:', { hederaAccountId, evmAddress: addressToCheck, isCreator: result.isCreator });
-      return result.isCreator;
+      return isCreator;
       
     } catch (error) {
       console.error('Error checking creator status:', error);
@@ -810,7 +787,7 @@ class CreatorService {
 
 // Authentication utilities
 class AuthService {
-  static async authenticateUser(hederaAccountId: string): Promise<User> {
+  static async authenticateUser(hederaAccountId: string, evmAddress?: string): Promise<User> {
     try {
       // First, try to find existing user
       let user = await UserService.findByHederaAccountId(hederaAccountId);
@@ -820,6 +797,12 @@ class AuthService {
         user = await UserService.createUser({
           hedera_account_id: hederaAccountId,
           display_name: `User ${hederaAccountId.slice(-4)}`,
+          evm_address: evmAddress,
+        });
+      } else if (evmAddress && user.evm_address !== evmAddress) {
+        // Update EVM address if it changed or wasn't set
+        user = await UserService.updateUser(user.id, {
+          evm_address: evmAddress
         });
       }
 

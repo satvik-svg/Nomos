@@ -60,16 +60,37 @@ abstract contract ReentrancyGuard {
 }
 
 /**
+ * @title IERC20
+ * @dev Standard ERC-20 interface
+ * Works with Hedera HTS tokens through facade contracts (HIP-218, HIP-376)
+ */
+interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function associate() external returns (uint256 responseCode);
+}
+
+/**
  * @title CreatorRegistryV4
- * @dev Ultra-simplified smart contract for managing creator registration
- * This version ONLY tracks creator status - no token transfers in the contract
- * Users must transfer tokens separately before calling register
+ * @dev HEDERA-COMPATIBLE smart contract for managing creator registration
+ * 
+ * This contract works with Hedera HTS tokens using ERC-20 interface
+ * Thanks to HIP-218 and HIP-376, HTS tokens support standard ERC-20 operations
+ * including transferFrom(), approve(), and balanceOf()
+ * 
+ * Registration Flow:
+ * 1. User approves this contract to spend REGISTRATION_FEE tokens
+ * 2. User calls registerAsCreator()
+ * 3. Contract transfers tokens from user using transferFrom()
+ * 4. Contract marks user as creator
  * 
  * STANDALONE VERSION - All dependencies inlined for easy Remix compilation
  */
 contract CreatorRegistryV4 is Ownable, ReentrancyGuard {
-    // Platform token contract address (for reference only)
-    address public immutable platformToken;
+    // Platform token (HTS token with ERC-20 facade)
+    IERC20 public immutable platformToken;
     
     // Registration fee in tokens (100 tokens with 8 decimals)
     uint256 public constant REGISTRATION_FEE = 100 * 10**8;
@@ -82,10 +103,14 @@ contract CreatorRegistryV4 is Ownable, ReentrancyGuard {
     
     // Custom errors
     error AlreadyRegistered(address user);
+    error InsufficientBalance(uint256 balance, uint256 required);
+    error InsufficientAllowance(uint256 allowance, uint256 required);
+    error TokenTransferFailed();
     error ZeroAddress();
     
     /**
      * @dev Constructor sets the platform token address and initial owner
+     * Also associates the contract with the token (required for HTS)
      * @param _platformToken Address of the HTS platform token
      * @param _owner Address of the contract owner
      */
@@ -93,23 +118,53 @@ contract CreatorRegistryV4 is Ownable, ReentrancyGuard {
         if (_platformToken == address(0)) revert ZeroAddress();
         if (_owner == address(0)) revert ZeroAddress();
         
-        platformToken = _platformToken;
+        platformToken = IERC20(_platformToken);
+        
+        // Associate this contract with the token (HIP-719)
+        // This is required for the contract to receive HTS tokens
+        platformToken.associate();
     }
     
     /**
-     * @dev Register as a creator
-     * User must have already transferred the registration fee to this contract
-     * This function ONLY marks the user as a creator - no token transfers
+     * @dev Register as a creator using ERC-20 transferFrom
+     * 
      * Requirements:
      * - User must not already be registered as a creator
+     * - User must have at least REGISTRATION_FEE tokens
+     * - User must have approved this contract to spend at least REGISTRATION_FEE tokens
+     * 
+     * The function will:
+     * 1. Check if user is already registered
+     * 2. Verify user has sufficient token balance
+     * 3. Verify user has approved sufficient allowance
+     * 4. Transfer tokens from user to this contract
+     * 5. Mark user as creator
      */
     function registerAsCreator() external nonReentrant {
         if (isCreator[msg.sender]) {
             revert AlreadyRegistered(msg.sender);
         }
         
-        // Simply mark the user as a creator
-        // No token transfer logic - that must be done separately
+        // Check user's token balance
+        uint256 balance = platformToken.balanceOf(msg.sender);
+        if (balance < REGISTRATION_FEE) {
+            revert InsufficientBalance(balance, REGISTRATION_FEE);
+        }
+        
+        // Check allowance
+        uint256 allowance = platformToken.allowance(msg.sender, address(this));
+        if (allowance < REGISTRATION_FEE) {
+            revert InsufficientAllowance(allowance, REGISTRATION_FEE);
+        }
+        
+        // Transfer tokens from user to this contract
+        // This works with HTS tokens thanks to HIP-218 and HIP-376
+        bool success = platformToken.transferFrom(msg.sender, address(this), REGISTRATION_FEE);
+        if (!success) {
+            revert TokenTransferFailed();
+        }
+        
+        // Mark the user as a creator
         isCreator[msg.sender] = true;
         
         emit CreatorRegistered(msg.sender, REGISTRATION_FEE);

@@ -60,3 +60,11 @@ coverage.json
 
 # Supabase (database credentials and config)
 supabase/
+
+# Deployment info (contains account IDs and contract addresses)
+deployment-info.json
+
+# Documentation with sensitive info
+*DEPLOYMENT*.md
+*INSTRUCTIONS*.md
+*FIX*.md

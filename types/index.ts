@@ -2,6 +2,8 @@
 export interface User {
   id: string;
   hedera_account_id: string;
+  evm_address?: string | null;
+  is_creator?: boolean;
   display_name?: string;
   bio?: string;
   avatar_url?: string;

@@ -60,15 +60,20 @@ export default function WalletConnect() {
           <div className="absolute top-full mt-2 right-0 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded-md text-sm max-w-sm z-20">
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                {error}
-                <div className="mt-2">
-                  <button
-                    onClick={() => setShowDebug(!showDebug)}
-                    className="text-xs text-red-600 underline hover:text-red-800"
-                  >
-                    {showDebug ? 'Hide' : 'Show'} Debug Info
-                  </button>
-                </div>
+                <div className="font-medium">{error.userMessage}</div>
+                {error.recoveryAction && (
+                  <div className="mt-1 text-xs text-red-600">{error.recoveryAction}</div>
+                )}
+                {error.technicalDetails && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setShowDebug(!showDebug)}
+                      className="text-xs text-red-600 underline hover:text-red-800"
+                    >
+                      {showDebug ? 'Hide' : 'Show'} Technical Details
+                    </button>
+                  </div>
+                )}
               </div>
               <button 
                 onClick={clearError}
@@ -77,9 +82,14 @@ export default function WalletConnect() {
                 ×
               </button>
             </div>
-            {showDebug && (
+            {showDebug && error.technicalDetails && (
               <div className="mt-2 border-t border-red-300 pt-2">
-                <HashPackDebug />
+                <div className="text-xs font-mono text-red-800 break-all">
+                  {error.technicalDetails}
+                </div>
+                <div className="mt-2">
+                  <HashPackDebug />
+                </div>
               </div>
             )}
           </div>
@@ -129,14 +139,21 @@ export default function WalletConnect() {
       )}
       
       {error && (
-        <div className="absolute top-full mt-2 right-0 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded-md text-sm whitespace-nowrap max-w-xs">
-          {error}
-          <button 
-            onClick={clearError}
-            className="ml-2 text-red-500 hover:text-red-700"
-          >
-            ×
-          </button>
+        <div className="absolute top-full mt-2 right-0 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded-md text-sm max-w-xs z-20">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <div className="font-medium">{error.userMessage}</div>
+              {error.recoveryAction && (
+                <div className="mt-1 text-xs text-red-600">{error.recoveryAction}</div>
+              )}
+            </div>
+            <button 
+              onClick={clearError}
+              className="ml-2 text-red-500 hover:text-red-700 flex-shrink-0"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
     </div>

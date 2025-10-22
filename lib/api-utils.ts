@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DatabaseError } from './supabase';
+import { parseError, logError, ErrorType, ErrorSeverity } from './error-handling';
 
 // Standard API response format
 export interface ApiResponse<T = any> {
@@ -41,28 +42,39 @@ export function createApiError(
 }
 
 // Error handler for API routes
-export function handleApiError(error: unknown): NextResponse<ApiResponse> {
-  console.error('API Error:', error);
+export function handleApiError(error: unknown, context?: string): NextResponse<ApiResponse> {
+  const appError = parseError(error, context);
+  logError(appError, context || 'API');
 
-  if (error instanceof DatabaseError) {
-    return createApiError(error.message, 400);
+  // Map error types to HTTP status codes
+  let statusCode = 500;
+  
+  if (appError.type === ErrorType.VALIDATION) {
+    statusCode = 400;
+  } else if (appError.type === ErrorType.AUTHENTICATION) {
+    statusCode = appError.severity === ErrorSeverity.WARNING ? 401 : 403;
+  } else if (appError.type === ErrorType.DATABASE) {
+    statusCode = 400;
+  } else if (error instanceof DatabaseError) {
+    statusCode = 400;
   }
 
-  if (error instanceof Error) {
-    return createApiError(error.message, 500);
-  }
-
-  return createApiError('Internal server error', 500);
+  return createApiError(appError.userMessage, statusCode, {
+    technicalDetails: appError.technicalDetails,
+    recoveryAction: appError.recoveryAction,
+    canRetry: appError.canRetry,
+  });
 }
 
 // Middleware for API routes
 export async function withErrorHandling<T>(
-  handler: () => Promise<NextResponse<ApiResponse<T>>>
+  handler: () => Promise<NextResponse<ApiResponse<T>>>,
+  context?: string
 ): Promise<NextResponse<ApiResponse<T>>> {
   try {
     return await handler();
   } catch (error) {
-    return handleApiError(error) as NextResponse<ApiResponse<T>>;
+    return handleApiError(error, context) as NextResponse<ApiResponse<T>>;
   }
 }
 

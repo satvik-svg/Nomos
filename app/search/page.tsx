@@ -4,22 +4,15 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from "@/components/layout/Sidebar";
 import { useWallet } from '@/contexts/WalletContext';
-import PostFeed from '@/components/posts/PostFeed';
 import SearchBar from '@/components/posts/SearchBar';
 import SearchResults from '@/components/posts/SearchResults';
-import ContentFeedFilters, { FilterOptions } from '@/components/posts/ContentFeedFilters';
 import { useToast } from '@/contexts/ToastContext';
 
-export default function ExplorePage() {
+export default function SearchPage() {
   const { user } = useWallet();
   const { showSuccess, showError } = useToast();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [filters, setFilters] = useState<FilterOptions>({
-    contentType: 'all',
-    sortBy: 'recent',
-    creatorOnly: false
-  });
 
   useEffect(() => {
     setSearchQuery(searchParams.get('q') || '');
@@ -48,8 +41,6 @@ export default function ExplorePage() {
       }
 
       showSuccess('Success', 'Post liked!');
-      // Refresh the feed
-      window.location.reload();
     } catch (error) {
       console.error('Error liking post:', error);
       showError('Error', 'Failed to like post');
@@ -79,16 +70,11 @@ export default function ExplorePage() {
       }
 
       showSuccess('Success', 'Post disliked');
-      // Refresh the feed
-      window.location.reload();
     } catch (error) {
       console.error('Error disliking post:', error);
       showError('Error', 'Failed to dislike post');
     }
   };
-
-  const isPremiumFilter = filters.contentType === 'all' ? undefined : filters.contentType === 'premium';
-  const isSearching = searchQuery.trim().length >= 2;
 
   return (
     <div className="flex">
@@ -97,27 +83,18 @@ export default function ExplorePage() {
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              Explore
+              Search
             </h1>
             <p className="text-lg text-gray-600 mb-6">
-              Discover trending content and new creators.
+              Find posts by title, content, or creator name.
             </p>
 
             {/* Search Bar */}
-            <SearchBar onSearch={setSearchQuery} />
+            <SearchBar onSearch={setSearchQuery} autoFocus={true} />
           </div>
 
-          {/* Show filters only when not searching */}
-          {!isSearching && (
-            <ContentFeedFilters 
-              filters={filters} 
-              onFilterChange={setFilters}
-              showCreatorFilter={true}
-            />
-          )}
-
-          {/* Conditional Rendering: Search Results or Post Feed */}
-          {isSearching ? (
+          {/* Search Results or Empty State */}
+          {searchQuery.trim().length >= 2 ? (
             <SearchResults
               query={searchQuery}
               userId={user?.id}
@@ -125,12 +102,23 @@ export default function ExplorePage() {
               onDislike={handleDislike}
             />
           ) : (
-            <PostFeed
-              userId={user?.id}
-              isPremium={isPremiumFilter}
-              onLike={handleLike}
-              onDislike={handleDislike}
-            />
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+              <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Searching</h3>
+              <p className="text-gray-600">
+                Enter at least 2 characters to search for posts.
+              </p>
+              <div className="mt-6 text-sm text-gray-500">
+                <p className="font-medium mb-2">Search tips:</p>
+                <ul className="space-y-1">
+                  <li>• Search by post title or content</li>
+                  <li>• Search by creator name</li>
+                  <li>• Use specific keywords for better results</li>
+                </ul>
+              </div>
+            </div>
           )}
         </div>
       </div>
