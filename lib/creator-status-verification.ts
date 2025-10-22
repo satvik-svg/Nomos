@@ -4,13 +4,10 @@
  * This module provides utilities to verify creator status and handle discrepancies
  * between on-chain (blockchain) and database status.
  * 
- * Note: On-chain verification already exists in lib/contract.ts
- * This module focuses on discrepancy detection and reconciliation.
- * 
  * Requirements: 10.1, 10.5
  */
 
-import { getCreatorRegistryService } from './contract';
+import { checkCreatorStatusOnChain } from './contract-query';
 import { CreatorService, UserService } from './supabase';
 import { getCreatorStatusCache, setCreatorStatusCache, clearCreatorStatusCache } from './creator-status-cache';
 
@@ -65,7 +62,7 @@ export async function verifyCreatorStatus(
   // 1. Check on-chain status (source of truth)
   try {
     console.log('Checking on-chain creator status...');
-    
+
     // Use ethers.js for more reliable contract queries
     if (evmAddress) {
       const { ethers } = await import('ethers');
@@ -73,7 +70,7 @@ export async function verifyCreatorStatus(
         process.env.NEXT_PUBLIC_HEDERA_JSON_RPC_RELAY || 'https://testnet.hashio.io/api'
       );
       const contractAddress = process.env.NEXT_PUBLIC_CREATOR_REGISTRY_ADDRESS;
-      
+
       if (contractAddress) {
         const abi = ['function isCreator(address account) view returns (bool)'];
         const contract = new ethers.Contract(contractAddress, abi, provider);
@@ -83,10 +80,9 @@ export async function verifyCreatorStatus(
         throw new Error('Contract address not configured');
       }
     } else {
-      // Fallback to Hedera SDK if no EVM address
-      const contractService = getCreatorRegistryService();
-      onChainStatus = await contractService.isCreator(accountId, evmAddress);
-      console.log('✓ On-chain status (SDK):', onChainStatus);
+      // No EVM address available
+      console.warn('⚠ No EVM address available for on-chain check');
+      throw new Error('EVM address required for on-chain verification');
     }
   } catch (err) {
     console.error('✗ Failed to check on-chain status:', err);
@@ -106,9 +102,9 @@ export async function verifyCreatorStatus(
   }
 
   // 3. Determine final status and check for discrepancies
-  const hasDiscrepancy = 
-    onChainStatus !== undefined && 
-    databaseStatus !== undefined && 
+  const hasDiscrepancy =
+    onChainStatus !== undefined &&
+    databaseStatus !== undefined &&
     onChainStatus !== databaseStatus;
 
   if (hasDiscrepancy) {
@@ -168,15 +164,18 @@ export async function checkOnChainCreatorStatus(
 ): Promise<boolean> {
   try {
     console.log('Checking on-chain creator status for:', accountId);
-    const contractService = getCreatorRegistryService();
-    const isCreator = await contractService.isCreator(accountId, evmAddress);
+
+    if (!evmAddress) {
+      throw new Error('EVM address required for on-chain verification');
+    }
+
+    const isCreator = await checkCreatorStatusOnChain(evmAddress);
     console.log('On-chain creator status:', isCreator);
     return isCreator;
   } catch (error) {
     console.error('Failed to check on-chain creator status:', error);
     throw new Error(
-      `Failed to verify creator status on blockchain: ${
-        error instanceof Error ? error.message : 'Unknown error'
+      `Failed to verify creator status on blockchain: ${error instanceof Error ? error.message : 'Unknown error'
       }`
     );
   }
@@ -197,8 +196,7 @@ export async function checkDatabaseCreatorStatus(
   } catch (error) {
     console.error('Failed to check database creator status:', error);
     throw new Error(
-      `Failed to verify creator status in database: ${
-        error instanceof Error ? error.message : 'Unknown error'
+      `Failed to verify creator status in database: ${error instanceof Error ? error.message : 'Unknown error'
       }`
     );
   }
@@ -301,7 +299,7 @@ export async function batchVerifyCreatorStatus(
   accounts: Array<{ accountId: string; evmAddress?: string }>
 ): Promise<Map<string, CreatorStatusResult>> {
   console.log(`=== Batch Verifying ${accounts.length} Accounts ===`);
-  
+
   const results = new Map<string, CreatorStatusResult>();
 
   // Process in parallel with a reasonable concurrency limit
