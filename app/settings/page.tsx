@@ -3,6 +3,7 @@
 import Sidebar from "@/components/layout/Sidebar";
 import { useWallet } from '@/contexts/WalletContext';
 import UserProfile from '@/components/user/UserProfile';
+import CreatorRegistrationButton from '@/components/creator/CreatorRegistrationButton';
 
 export default function SettingsPage() {
   const { isConnected, user, isCreator } = useWallet();
@@ -35,9 +36,7 @@ export default function SettingsPage() {
                   Register as a creator to start monetizing your content. 
                   Registration requires a one-time payment of 100 $PLATFORM tokens.
                 </p>
-                <button className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
-                  Become a Creator (100 $PLATFORM)
-                </button>
+                <CreatorRegistrationButton size="lg" />
               </div>
             )}
 

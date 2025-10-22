@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { hashPackService, WalletConnectionState } from '@/lib/walletconnect';
+import { hederaWalletService, WalletConnectionState } from '@/lib/hedera-wallet-connect';
 import { AuthService, CreatorService } from '@/lib/supabase';
 import { User } from '@/types';
 
@@ -10,6 +10,7 @@ interface WalletContextType {
   isConnected: boolean;
   accountId: string | null;
   network: string | null;
+  evmAddress: string | null;
   isLoading: boolean;
   
   // User data
@@ -19,6 +20,7 @@ interface WalletContextType {
   // Actions
   connectWallet: () => Promise<void>;
   disconnectWallet: () => Promise<void>;
+  refreshUserData: () => Promise<void>;
   
   // Error handling
   error: string | null;
@@ -44,14 +46,14 @@ export function WalletProvider({ children }: WalletProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize HashPack on mount
+  // Initialize wallet service on mount
   useEffect(() => {
-    const initializeHashPack = async () => {
+    const initializeWallet = async () => {
       try {
-        await hashPackService.init();
+        await hederaWalletService.init();
         
         // Check if already connected
-        const currentState = hashPackService.getConnectionState();
+        const currentState = hederaWalletService.getConnectionState();
         setConnectionState(currentState);
         
         if (currentState.isConnected && currentState.accountId) {
@@ -59,7 +61,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
         }
         
         // Listen for connection changes
-        hashPackService.onConnectionChange((newState) => {
+        hederaWalletService.onConnectionChange((newState) => {
           setConnectionState(newState);
           if (newState.isConnected && newState.accountId) {
             loadUserData(newState.accountId);
@@ -69,16 +71,17 @@ export function WalletProvider({ children }: WalletProviderProps) {
           }
         });
       } catch (err) {
-        console.error('Failed to initialize HashPack:', err);
+        console.error('Failed to initialize wallet service:', err);
         setError('Failed to initialize wallet connection');
       }
     };
 
-    initializeHashPack();
+    initializeWallet();
   }, []);
 
   const loadUserData = async (accountId: string) => {
     try {
+      console.log('Loading user data for account:', accountId);
       setIsLoading(true);
       setError(null);
       
@@ -89,10 +92,14 @@ export function WalletProvider({ children }: WalletProviderProps) {
         throw new Error('Failed to authenticate user');
       }
       
+      console.log('User data loaded:', userData);
       setUser(userData);
       
       // Check creator status from smart contract
-      const creatorStatus = await CreatorService.checkCreatorStatus(accountId);
+      console.log('Checking creator status from smart contract...');
+      const evmAddress = connectionState.evmAddress || undefined;
+      const creatorStatus = await CreatorService.checkCreatorStatus(accountId, evmAddress);
+      console.log('Creator status updated:', creatorStatus);
       setIsCreator(creatorStatus);
       
     } catch (err) {
@@ -108,7 +115,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
       setIsLoading(true);
       setError(null);
       
-      const newState = await hashPackService.connectWallet();
+      const newState = await hederaWalletService.connectWallet();
       setConnectionState(newState);
       
       if (newState.accountId) {
@@ -116,7 +123,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
       }
     } catch (err) {
       console.error('Failed to connect wallet:', err);
-      setError('Failed to connect wallet. Please make sure HashPack is installed and try again.');
+      setError(err instanceof Error ? err.message : 'Failed to connect wallet. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -127,7 +134,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
       setIsLoading(true);
       setError(null);
       
-      await hashPackService.disconnectWallet();
+      await hederaWalletService.disconnectWallet();
       setConnectionState({
         isConnected: false,
         accountId: null,
@@ -148,11 +155,22 @@ export function WalletProvider({ children }: WalletProviderProps) {
     setError(null);
   };
 
+  const refreshUserData = async () => {
+    console.log('Refreshing user data...');
+    if (connectionState.accountId) {
+      await loadUserData(connectionState.accountId);
+      console.log('User data refresh complete');
+    } else {
+      console.warn('No account ID available for refresh');
+    }
+  };
+
   const value: WalletContextType = {
     // Connection state
     isConnected: connectionState.isConnected,
     accountId: connectionState.accountId,
     network: connectionState.network,
+    evmAddress: connectionState.evmAddress,
     isLoading,
     
     // User data
@@ -162,6 +180,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
     // Actions
     connectWallet,
     disconnectWallet,
+    refreshUserData,
     
     // Error handling
     error,

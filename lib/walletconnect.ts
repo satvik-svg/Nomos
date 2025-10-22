@@ -7,9 +7,34 @@ export interface WalletConnectionState {
   topic: string | null;
 }
 
-// Extend Window interface to include hashpack
+// Extend Window interface to include hashconnect (HashPack's new API)
 declare global {
   interface Window {
+    hashconnect?: {
+      connectToLocalWallet: () => Promise<{
+        accountIds: string[];
+        network: string;
+        topic: string;
+      }>;
+      disconnect: () => Promise<void>;
+      sendTransaction: (topic: string, transaction: {
+        byteArray: Uint8Array;
+        metadata: {
+          accountToSign: string;
+          returnTransaction: boolean;
+        };
+      }) => Promise<{
+        success: boolean;
+        response?: unknown;
+        error?: string;
+      }>;
+      getConnectionState: () => {
+        accountIds?: string[];
+        network?: string;
+        topic?: string;
+      } | null;
+    };
+    // Legacy hashpack support
     hashpack?: {
       connectToLocalWallet: () => Promise<{
         accountIds: string[];
@@ -50,7 +75,10 @@ export class HashPackService {
   constructor() {
     // Check for existing connection on initialization
     if (typeof window !== 'undefined') {
-      this.checkExistingConnection();
+      // Wait a bit for extensions to load
+      setTimeout(() => {
+        this.checkExistingConnection();
+      }, 1000);
     }
   }
 
@@ -63,37 +91,54 @@ export class HashPackService {
 
     // Wait a bit for HashPack to load if it's not immediately available
     let attempts = 0;
-    while (!window.hashpack && attempts < 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+    while (!this.getHashPackInstance() && attempts < 20) {
+      await new Promise(resolve => setTimeout(resolve, 200));
       attempts++;
     }
 
-    if (!window.hashpack) {
+    if (!this.getHashPackInstance()) {
       console.warn('HashPack not detected. Please install HashPack wallet extension.');
+    } else {
+      console.log('HashPack detected successfully');
     }
   }
 
+  private getHashPackInstance() {
+    // Try new hashconnect API first, then fall back to legacy hashpack
+    return window.hashconnect || window.hashpack;
+  }
+
   private checkExistingConnection(): void {
-    if (window.hashpack) {
-      const state = window.hashpack.getConnectionState();
-      if (state && state.accountIds && state.accountIds.length > 0) {
-        this.connectionState = {
-          isConnected: true,
-          accountId: state.accountIds[0],
-          network: state.network || 'testnet',
-          topic: state.topic || null,
-        };
+    const hashpack = this.getHashPackInstance();
+    if (hashpack) {
+      try {
+        const state = hashpack.getConnectionState();
+        if (state && state.accountIds && state.accountIds.length > 0) {
+          this.connectionState = {
+            isConnected: true,
+            accountId: state.accountIds[0],
+            network: state.network || 'testnet',
+            topic: state.topic || null,
+          };
+          console.log('Existing HashPack connection found:', this.connectionState);
+        }
+      } catch (error) {
+        console.log('No existing HashPack connection found');
       }
     }
   }
 
   async connectWallet(): Promise<WalletConnectionState> {
     try {
-      if (!window.hashpack) {
-        throw new Error('HashPack wallet not found. Please install HashPack extension.');
+      const hashpack = this.getHashPackInstance();
+      
+      if (!hashpack) {
+        throw new Error('HashPack wallet not found. Please install HashPack extension and refresh the page.');
       }
 
-      const result = await window.hashpack.connectToLocalWallet();
+      console.log('Attempting to connect to HashPack...');
+      const result = await hashpack.connectToLocalWallet();
+      console.log('HashPack connection result:', result);
       
       this.connectionState = {
         isConnected: true,
@@ -108,14 +153,25 @@ export class HashPackService {
       return this.connectionState;
     } catch (error) {
       console.error('Failed to connect wallet:', error);
-      throw error;
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('User rejected')) {
+          throw new Error('Connection rejected by user. Please try again and approve the connection in HashPack.');
+        } else if (error.message.includes('not found')) {
+          throw new Error('HashPack wallet not found. Please install HashPack extension and refresh the page.');
+        }
+      }
+      
+      throw new Error('Failed to connect to HashPack. Please make sure HashPack is installed and unlocked.');
     }
   }
 
   async disconnectWallet(): Promise<void> {
     try {
-      if (window.hashpack) {
-        await window.hashpack.disconnect();
+      const hashpack = this.getHashPackInstance();
+      if (hashpack) {
+        await hashpack.disconnect();
       }
 
       this.connectionState = {
@@ -147,7 +203,9 @@ export class HashPackService {
     error?: string;
   }> {
     try {
-      if (!window.hashpack) {
+      const hashpack = this.getHashPackInstance();
+      
+      if (!hashpack) {
         throw new Error('HashPack wallet not found');
       }
 
@@ -155,7 +213,7 @@ export class HashPackService {
         throw new Error('No active wallet connection');
       }
 
-      const response = await window.hashpack.sendTransaction(
+      const response = await hashpack.sendTransaction(
         this.connectionState.topic,
         {
           byteArray: transactionBytes,
@@ -182,7 +240,7 @@ export class HashPackService {
   }
 
   isHashPackAvailable(): boolean {
-    return typeof window !== 'undefined' && !!window.hashpack;
+    return typeof window !== 'undefined' && !!this.getHashPackInstance();
   }
 }
 

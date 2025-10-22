@@ -2,6 +2,7 @@
 
 import { useWallet } from '@/contexts/WalletContext';
 import { useState } from 'react';
+import HashPackDebug from '@/components/debug/HashPackDebug';
 
 export default function WalletConnect() {
   const { 
@@ -16,10 +17,16 @@ export default function WalletConnect() {
   } = useWallet();
   
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
 
   const handleConnect = async () => {
     clearError();
-    await connectWallet();
+    try {
+      await connectWallet();
+    } catch (error) {
+      console.error('Connection failed:', error);
+      // Error is already handled by the wallet context
+    }
   };
 
   const handleDisconnect = async () => {
@@ -50,14 +57,31 @@ export default function WalletConnect() {
         </button>
         
         {error && (
-          <div className="absolute top-full mt-2 right-0 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded-md text-sm whitespace-nowrap max-w-xs">
-            {error}
-            <button 
-              onClick={clearError}
-              className="ml-2 text-red-500 hover:text-red-700"
-            >
-              ×
-            </button>
+          <div className="absolute top-full mt-2 right-0 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded-md text-sm max-w-sm z-20">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                {error}
+                <div className="mt-2">
+                  <button
+                    onClick={() => setShowDebug(!showDebug)}
+                    className="text-xs text-red-600 underline hover:text-red-800"
+                  >
+                    {showDebug ? 'Hide' : 'Show'} Debug Info
+                  </button>
+                </div>
+              </div>
+              <button 
+                onClick={clearError}
+                className="ml-2 text-red-500 hover:text-red-700 flex-shrink-0"
+              >
+                ×
+              </button>
+            </div>
+            {showDebug && (
+              <div className="mt-2 border-t border-red-300 pt-2">
+                <HashPackDebug />
+              </div>
+            )}
           </div>
         )}
       </div>

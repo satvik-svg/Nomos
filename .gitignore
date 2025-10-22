@@ -52,10 +52,11 @@ typechain-types/
 # Coverage reports
 coverage/
 coverage.json
-
-# Kiro IDE
 .kiro/
 
 # IDE settings (personal preferences)
 .vscode/
 .idea/
+
+# Supabase (database credentials and config)
+supabase/

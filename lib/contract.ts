@@ -14,12 +14,12 @@ import {
 
 // Contract interaction service
 export class CreatorRegistryService {
-  private client: Client;
   private contractId: ContractId;
   private platformTokenId: TokenId;
+  private network: string;
 
   constructor() {
-    const network = process.env.NEXT_PUBLIC_HEDERA_NETWORK || "testnet";
+    this.network = process.env.NEXT_PUBLIC_HEDERA_NETWORK || "testnet";
     const contractIdString = process.env.NEXT_PUBLIC_CREATOR_REGISTRY_CONTRACT_ID;
     const tokenIdString = process.env.NEXT_PUBLIC_PLATFORM_TOKEN_ID;
 
@@ -27,44 +27,106 @@ export class CreatorRegistryService {
       throw new Error("Missing contract or token configuration");
     }
 
-    this.client = network === "mainnet" 
-      ? Client.forMainnet() 
-      : Client.forTestnet();
-
     this.contractId = ContractId.fromString(contractIdString);
     this.platformTokenId = TokenId.fromString(tokenIdString);
   }
 
+  /**
+   * Get a client instance (without operator for queries)
+   */
+  private getClient(): Client {
+    return this.network === "mainnet" 
+      ? Client.forMainnet() 
+      : Client.forTestnet();
+  }
+
   // Check if an account is a registered creator
-  async isCreator(accountId: string): Promise<boolean> {
+  async isCreator(accountId: string, evmAddressOverride?: string): Promise<boolean> {
+    const client = this.getClient();
+    
+    // Set a temporary operator for queries using environment variables if available
     try {
-      // Convert Hedera account ID to EVM address format
-      const accountIdParts = accountId.split(".");
-      const accountNum = parseInt(accountIdParts[2]);
-      const evmAddress = `0x${accountNum.toString(16).padStart(40, '0')}`;
+      const operatorId = process.env.ACCOUNT_ID;
+      const operatorKey = process.env.HEX_Encoded_Private_Key;
+      
+      if (operatorId && operatorKey) {
+        const { PrivateKey, AccountId: HederaAccountId } = await import("@hashgraph/sdk");
+        client.setOperator(
+          HederaAccountId.fromString(operatorId),
+          PrivateKey.fromStringECDSA(operatorKey)
+        );
+      }
+    } catch (error) {
+      console.warn('Could not set operator for query, will use payment instead:', error);
+    }
+    
+    try {
+      // Use provided EVM address or try to get it from localStorage/env
+      let evmAddress = evmAddressOverride;
+      
+      if (!evmAddress) {
+        // Try to get from localStorage if in browser
+        if (typeof window !== 'undefined') {
+          evmAddress = localStorage.getItem(`evm_address_${accountId}`) || undefined;
+        }
+        
+        // Try environment variable as fallback
+        if (!evmAddress) {
+          evmAddress = process.env.NEXT_PUBLIC_EVM_ADDRESS;
+        }
+        
+        // Last resort: calculate from account number (less accurate)
+        if (!evmAddress) {
+          const accountIdParts = accountId.split(".");
+          const accountNum = parseInt(accountIdParts[2]);
+          evmAddress = `0x${accountNum.toString(16).padStart(40, '0')}`;
+          console.warn('Using calculated EVM address. For accurate results, set NEXT_PUBLIC_EVM_ADDRESS or store in localStorage.');
+        }
+      }
+
+      console.log('Querying contract for creator status:', {
+        contractId: this.contractId.toString(),
+        accountId,
+        evmAddress,
+        network: this.network
+      });
 
       const query = new ContractCallQuery()
         .setContractId(this.contractId)
         .setGas(100000)
-        .setFunction("isCreator", new ContractFunctionParameters().addAddress(evmAddress));
+        .setFunction("getCreatorStatus", new ContractFunctionParameters().addAddress(evmAddress))
+        .setQueryPayment(new Hbar(1)); // Set a small payment for the query
 
-      const result = await query.execute(this.client);
-      return result.getBool(0);
+      const result = await query.execute(client);
+      const isCreator = result.getBool(0);
+      
+      console.log('Contract query result:', {
+        contractId: this.contractId.toString(),
+        accountId,
+        evmAddress,
+        isCreator
+      });
+      
+      return isCreator;
     } catch (error) {
       console.error("Error checking creator status:", error);
       return false;
+    } finally {
+      client.close();
     }
   }
 
   // Get registration fee
   async getRegistrationFee(): Promise<number> {
+    const client = this.getClient();
     try {
       const query = new ContractCallQuery()
         .setContractId(this.contractId)
         .setGas(100000)
-        .setFunction("REGISTRATION_FEE");
+        .setFunction("getRegistrationFee")
+        .setQueryPayment(new Hbar(1)); // Set a small payment for the query
 
-      const result = await query.execute(this.client);
+      const result = await query.execute(client);
       const fee = result.getUint256(0);
       
       // Convert from smallest unit (8 decimals) to tokens
@@ -72,17 +134,21 @@ export class CreatorRegistryService {
     } catch (error) {
       console.error("Error getting registration fee:", error);
       return 100; // Default fee
+    } finally {
+      client.close();
     }
   }
 
   // Register as creator (requires user's private key and account setup)
+  // NOTE: This method is deprecated - use creator-registration.ts instead
   async registerAsCreator(
     userAccountId: string, 
     userPrivateKey: string
   ): Promise<{ success: boolean; transactionId?: string; error?: string }> {
+    const client = this.getClient();
     try {
       // Set up client with user credentials
-      const userClient = this.client.setOperator(
+      client.setOperator(
         AccountId.fromString(userAccountId),
         PrivateKey.fromStringECDSA(userPrivateKey)
       );
@@ -93,7 +159,7 @@ export class CreatorRegistryService {
           .setAccountId(userAccountId)
           .setTokenIds([this.platformTokenId]);
 
-        await associateTransaction.execute(userClient);
+        await associateTransaction.execute(client);
       } catch (associateError) {
         // Token might already be associated, continue
         console.log("Token association might already exist:", associateError);
@@ -113,8 +179,8 @@ export class CreatorRegistryService {
         .setFunction("registerAsCreator")
         .setPayableAmount(Hbar.fromTinybars(0)); // No HBAR payment needed
 
-      const txResponse = await transaction.execute(userClient);
-      const receipt = await txResponse.getReceipt(userClient);
+      const txResponse = await transaction.execute(client);
+      const receipt = await txResponse.getReceipt(client);
 
       if (receipt.status.toString() === "SUCCESS") {
         return {
@@ -134,12 +200,9 @@ export class CreatorRegistryService {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error occurred"
       };
+    } finally {
+      client.close();
     }
-  }
-
-  // Close the client connection
-  close(): void {
-    this.client.close();
   }
 }
 
