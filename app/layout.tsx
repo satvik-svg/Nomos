@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+// @ts-ignore: CSS module side-effect import for Next.js
 import "./globals.css";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import InitEvmAddress from "./init-evm-address";
+import MobileNav from "@/components/layout/MobileNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,16 +30,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-white dark:bg-black`}
       >
         <WalletProvider>
           <ToastProvider>
             <InitEvmAddress />
-            <Header />
-            <main className="flex-1">
+            <main className="flex-1 pb-16 md:pb-0">
               {children}
             </main>
-            <Footer />
+            <MobileNav />
           </ToastProvider>
         </WalletProvider>
       </body>
