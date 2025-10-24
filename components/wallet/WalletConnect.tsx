@@ -51,7 +51,7 @@ export default function WalletConnect() {
       <div className="relative">
         <button
           onClick={handleConnect}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+          className="bg-white text-black px-4 py-2 rounded-md transition-colors"
         >
           Connect Wallet
         </button>
