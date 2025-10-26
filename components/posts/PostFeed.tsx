@@ -233,7 +233,7 @@ export default function PostFeed({
       {/* End of Feed Message */}
       {!hasMore && posts.length > 0 && (
         <div className="text-center py-4 text-gray-500">
-          You've reached the end of the feed
+          You&apos;ve reached the end of the feed
         </div>
       )}
     </div>

@@ -263,7 +263,7 @@ export async function reconcileCreatorStatus(
 
     // Update database to match blockchain
     await UserService.updateUser(user.id, {
-      // @ts-ignore - is_creator field exists but not in type definition
+      // @ts-expect-error - is_creator field exists but not in type definition
       is_creator: verification.onChainStatus,
     });
 

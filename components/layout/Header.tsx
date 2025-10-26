@@ -34,6 +34,9 @@ export default function Header() {
             <Link href="/creators" className="text-gray-700 hover:text-gray-900">
               Creators
             </Link>
+            <Link href="/demo" className="text-blue-600 hover:text-blue-800 font-semibold">
+              Agents
+            </Link>
           </nav>
 
           <div className="flex items-center space-x-4">

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Post } from '@/types';
 import Link from 'next/link';
-import CreatorBadge from '@/components/creator/CreatorBadge';
+// import CreatorBadge from '@/components/creator/CreatorBadge';
 
 interface PostCardProps {
   post: Post;

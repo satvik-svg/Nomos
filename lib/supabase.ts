@@ -363,7 +363,7 @@ class PostService {
         return null;
       }
 
-      let query = supabase
+      const query = supabase
         .from('posts')
         .select(`
           *,

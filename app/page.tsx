@@ -5,7 +5,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import { useWallet } from '@/contexts/WalletContext';
 import PostFeed from '@/components/posts/PostFeed';
 import PostCreationModal from '@/components/posts/PostCreationModal';
-import CreatePostButton from '@/components/posts/CreatePostButton';
+// import CreatePostButton from '@/components/posts/CreatePostButton';
 import { useToast } from '@/contexts/ToastContext';
 import { CreatePostData, User } from '@/types';
 import WalletConnect from '@/components/wallet/WalletConnect';
@@ -153,7 +153,7 @@ export default function Home() {
                   onClick={() => setIsModalOpen(true)}
                   className="w-full text-left text-gray-500 dark:text-gray-400 text-xl py-3 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
-                  What's happening?
+                  What&apos;s happening?
                 </button>
                 
                 {/* Composer Tools */}
@@ -262,7 +262,7 @@ export default function Home() {
                 Creator Dashboard
               </h2>
               <p className="text-gray-900 dark:text-white text-[15px] mb-3 leading-5">
-                You're a verified creator. Manage your content and earnings.
+                You&apos;re a verified creator. Manage your content and earnings.
               </p>
               <Link 
                 href="/creator/settings"
@@ -291,7 +291,7 @@ export default function Home() {
           {/* What's happening */}
           <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white px-4 py-3">
-              What's happening
+              What&apos;s happening
             </h2>
             <div className="hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer px-4 py-3">
               <div className="flex items-start justify-between">

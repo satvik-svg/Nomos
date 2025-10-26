@@ -14,11 +14,18 @@
     "hardhat:node": "hardhat node",
     "hardhat:deploy": "hardhat ignition deploy",
     "create-token": "tsx scripts/create-platform-token.ts",
-    "faucet": "tsx scripts/simple-faucet.ts"
+    "faucet": "tsx scripts/simple-faucet.ts",
+    "agents:install": "cd agents && npm install",
+    "agents:build": "cd agents && npm run build",
+    "agents:start": "cd agents && npm run start:both",
+    "agents:dev": "cd agents && npm run dev:both",
+    "dev:full": "concurrently \"npm run dev\" \"npm run agents:dev\""
   },
   "dependencies": {
     "@hashgraph/hedera-wallet-connect": "^2.0.4-canary.3ca04e9.0",
     "@hashgraph/proto": "^2.24.0",
+    "@langchain/core": "^1.0.1",
+    "@langchain/groq": "^1.0.0",
     "@openzeppelin/contracts": "^5.4.0",
     "@reown/appkit": "^1.8.11",
     "@reown/appkit-common": "^1.8.11",
@@ -27,6 +34,10 @@
     "@walletconnect/modal": "^2.7.0",
     "@walletconnect/sign-client": "^2.22.4",
     "@walletconnect/utils": "^2.22.4",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "hedera-agent-kit": "^3.4.0",
+    "langchain": "^1.0.1",
     "next": "15.5.6",
     "react": "19.1.0",
     "react-dom": "19.1.0"
@@ -43,6 +54,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "chai": "^6.2.0",
+    "concurrently": "^9.2.1",
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.6",

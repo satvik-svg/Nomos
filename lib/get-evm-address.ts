@@ -7,7 +7,7 @@
  * 3. Derived from the account's ECDSA public key
  */
 
-import { AccountId } from '@hashgraph/sdk';
+// import { AccountId } from '@hashgraph/sdk';
 
 /**
  * Get EVM address from Hedera Mirror Node

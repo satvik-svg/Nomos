@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-// @ts-ignore: CSS module side-effect import for Next.js
 import "./globals.css";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { ToastProvider } from "@/contexts/ToastContext";

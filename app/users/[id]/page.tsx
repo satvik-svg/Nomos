@@ -144,7 +144,7 @@ export default function UserProfilePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">User Not Found</h2>
-            <p className="text-gray-600 mb-4">The user you're looking for doesn't exist.</p>
+            <p className="text-gray-600 mb-4">The user you&apos;re looking for doesn&apos;t exist.</p>
             <Link href="/" className="text-blue-600 hover:text-blue-700">
               Go back home
             </Link>

@@ -66,7 +66,7 @@ export default function Toast({
     }
   };
 
-  const styles = typeStyles[type];
+  const styles = typeStyles[type] || typeStyles.info;
 
   return (
     <div
