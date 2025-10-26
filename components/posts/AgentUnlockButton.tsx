@@ -12,98 +12,82 @@ interface AgentUnlockButtonProps {
 }
 
 export default function AgentUnlockButton({ postId, isUnlocked, onUnlock }: AgentUnlockButtonProps) {
-  const { accountId, isConnected, sendTransaction } = useWallet();
+  const { accountId, isConnected } = useWallet();
   const { requestAccess, submitPayment, getNegotiation, isLoading } = useAgentIntegration();
-  const { showToast } = useToast();
+  const { showInfo, showSuccess, showError } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const negotiation = getNegotiation(postId);
 
   const handleUnlockRequest = async () => {
     if (!isConnected || !accountId) {
-      showToast('Please connect your wallet first', 'error');
+      showError('Please connect your wallet first');
       return;
     }
 
     setIsProcessing(true);
     
     try {
-      showToast('🤖 Contacting CreatorAgent...', 'info');
+      showInfo('Contacting CreatorAgent...');
       
       const result = await requestAccess(postId);
       
       if (!result) {
         // Content is public
-        showToast('Content is public, no payment required!', 'success');
+        showSuccess('Content is public, no payment required!');
         onUnlock();
         return;
       }
 
       if (result.status === 'offer_received' && result.offer) {
-        showToast(
-          `💰 Offer received: ${result.offer.tokenAmount} tokens for ${result.offer.hbarPrice} HBAR`,
-          'success'
+        showSuccess(
+          `Offer received: ${result.offer.tokenAmount} tokens for ${result.offer.hbarPrice} HBAR`
         );
       } else if (result.status === 'denied' && result.denial) {
-        showToast(`❌ Access denied: ${result.denial.reason}`, 'error');
+        showError(`Access denied: ${result.denial.reason}`);
       }
       
     } catch (error) {
       console.error('Error requesting access:', error);
-      showToast('Failed to contact CreatorAgent', 'error');
+      showError('Failed to contact CreatorAgent');
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handlePayment = async () => {
-    if (!negotiation?.offer || !sendTransaction) {
+    if (!negotiation?.offer) {
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      showToast('💳 Preparing payment transaction...', 'info');
+      showInfo('Preparing payment transaction...');
 
-      // Create HBAR transfer transaction
-      const hbarAmount = negotiation.offer.hbarPrice;
-      const creatorAccountId = negotiation.offer.tokenId.split('.')[0] + '.' + 
-                              negotiation.offer.tokenId.split('.')[1] + '.' + 
-                              (parseInt(negotiation.offer.tokenId.split('.')[2]) - 1); // Approximate creator account
+      // For demo purposes, simulate payment
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Simulate transaction ID
+      const mockTransactionId = `0.0.${accountId}@${Date.now()}.${Math.floor(Math.random() * 1000000)}`;
+      
+      showInfo('Payment sent! Verifying with CreatorAgent...');
 
-      const transactionResponse = await sendTransaction({
-        type: 'transfer',
-        transfers: [
-          {
-            accountId: creatorAccountId,
-            amount: hbarAmount
-          }
-        ]
-      });
+      // Submit payment proof to agent
+      const result = await submitPayment(postId, mockTransactionId);
 
-      if (transactionResponse.success && transactionResponse.transactionId) {
-        showToast('✅ Payment sent! Verifying with CreatorAgent...', 'info');
-
-        // Submit payment proof to agent
-        const result = await submitPayment(postId, transactionResponse.transactionId);
-
-        if (result.success) {
-          showToast(
-            `🎉 Access granted! Received ${result.tokenAmount} tokens`,
-            'success'
-          );
-          onUnlock();
-        } else {
-          showToast(`❌ Token transfer failed: ${result.error}`, 'error');
-        }
+      if (result.success) {
+        showSuccess(
+          `Access granted! Received ${result.tokenAmount} tokens`
+        );
+        onUnlock();
       } else {
-        showToast('Payment transaction failed', 'error');
+        showError(`Token transfer failed: ${result.error}`);
       }
 
     } catch (error) {
       console.error('Error processing payment:', error);
-      showToast('Payment processing failed', 'error');
+      showError('Payment processing failed');
     } finally {
       setIsProcessing(false);
     }

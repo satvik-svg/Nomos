@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from "@/components/layout/Sidebar";
 import { useWallet } from '@/contexts/WalletContext';
@@ -10,7 +10,7 @@ import SearchResults from '@/components/posts/SearchResults';
 import ContentFeedFilters, { FilterOptions } from '@/components/posts/ContentFeedFilters';
 import { useToast } from '@/contexts/ToastContext';
 
-export default function ExplorePage() {
+function ExploreContent() {
   const { user } = useWallet();
   const { showSuccess, showError } = useToast();
   const searchParams = useSearchParams();
@@ -135,5 +135,13 @@ export default function ExplorePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ExplorePage() {
+  return (
+    <Suspense fallback={<div>Loading explore...</div>}>
+      <ExploreContent />
+    </Suspense>
   );
 }

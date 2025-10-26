@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from "@/components/layout/Sidebar";
 import { useWallet } from '@/contexts/WalletContext';
@@ -8,7 +8,7 @@ import SearchBar from '@/components/posts/SearchBar';
 import SearchResults from '@/components/posts/SearchResults';
 import { useToast } from '@/contexts/ToastContext';
 
-export default function SearchPage() {
+function SearchContent() {
   const { user } = useWallet();
   const { showSuccess, showError } = useToast();
   const searchParams = useSearchParams();
@@ -123,5 +123,13 @@ export default function SearchPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div>Loading search...</div>}>
+      <SearchContent />
+    </Suspense>
   );
 }
