@@ -7,7 +7,7 @@ export default function PremiumContentDemo() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
-  const { showToast } = useToast();
+  const { showInfo, showSuccess, showError } = useToast();
 
   const simulateUnlockFlow = async () => {
     setIsProcessing(true);
@@ -15,34 +15,34 @@ export default function PremiumContentDemo() {
     try {
       // Step 1: Contacting Agent
       setCurrentStep('Contacting CreatorAgent...');
-      showToast('Contacting CreatorAgent...', 'info');
+      showInfo('Contacting CreatorAgent...');
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       // Step 2: Offer Received
       setCurrentStep('Offer received: 10 tokens for 5 HBAR');
-      showToast('Offer received: 10 tokens for 5 HBAR', 'success');
+      showSuccess('Offer received: 10 tokens for 5 HBAR');
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Step 3: Payment Processing
       setCurrentStep('Processing payment...');
-      showToast('Opening HashPack wallet...', 'info');
+      showInfo('Opening HashPack wallet...');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Step 4: Payment Sent
       setCurrentStep('Payment sent! Verifying with CreatorAgent...');
-      showToast('Payment sent! Verifying...', 'info');
+      showInfo('Payment sent! Verifying...');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Step 5: Success
       setCurrentStep('Access granted! Received 10 tokens');
-      showToast('Access granted! Received 10 tokens', 'success');
+      showSuccess('Access granted! Received 10 tokens');
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       setIsUnlocked(true);
       setCurrentStep('');
 
     } catch {
-      showToast('Unlock failed', 'error');
+      showError('Unlock failed');
       setCurrentStep('');
     } finally {
       setIsProcessing(false);

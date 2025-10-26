@@ -15,12 +15,12 @@ export default function HashPackDebug() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Check for wallet APIs
-      const hasHashPack = !!window.hashpack;
-      const hasHashConnect = !!window.hashconnect;
-      const hasWalletConnect = !!(window as Record<string, unknown>).WalletConnect;
+      const hasHashPack = !!(window as any).hashpack;
+      const hasHashConnect = !!(window as any).hashconnect;
+      const hasWalletConnect = !!(window as any).WalletConnect;
       
       // Get all window properties that might be related to wallets
-      const windowKeys = Object.keys(window).filter(key => 
+      const windowKeys = Object.keys(window as any).filter((key: string) => 
         key.toLowerCase().includes('hash') || 
         key.toLowerCase().includes('pack') ||
         key.toLowerCase().includes('connect') ||

@@ -108,7 +108,7 @@ export default function AgentDemoFlow() {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
-  const { showToast } = useToast();
+  const { showInfo, showSuccess } = useToast();
 
   const getAgentColor = (agent: string) => {
     switch (agent) {
@@ -136,7 +136,7 @@ export default function AgentDemoFlow() {
     setCompletedSteps([]);
     setLogs([]);
     
-    showToast('Starting Agent Flow...', 'info');
+    showInfo('Starting Agent Flow...');
 
     for (let i = 0; i < DEMO_STEPS.length; i++) {
       const step = DEMO_STEPS[i];
@@ -154,7 +154,7 @@ export default function AgentDemoFlow() {
 
       // Show toast for important steps
       if ([1, 4, 6, 9, 11].includes(step.id)) {
-        showToast(step.title, 'info');
+        showInfo(step.title);
       }
 
       // Wait for step duration
@@ -165,7 +165,7 @@ export default function AgentDemoFlow() {
 
     setCurrentStep(-1);
     setIsRunning(false);
-    showToast('Agent Flow Completed!', 'success');
+    showSuccess('Agent Flow Completed!');
   };
 
   const resetDemo = () => {
